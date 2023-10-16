@@ -109,45 +109,67 @@ def main(**kwargs):
     curr_pos = np.array(curr_pos)
     pos_stride = 0.1
 
-    frequency = 20
-    while True:
-        if len(listener.key) > 0:
-            if listener.key == "q":
-                curr_pos[0] += 0.1
-            elif listener.key == "w":
-                curr_pos[0] -= 0.1
-            elif listener.key == "a":
-                curr_pos[1] += 0.1
-            elif listener.key == "s":
-                curr_pos[1] -= 0.1
-            elif listener.key == "z":
-                curr_pos[1] += 0.1
-            elif listener.key == "x":
-            elif listener.key == "e":
-            elif listener.key == "r":
-            elif listener.key == "d":
-            elif listener.key == "f":
-            elif listener.key == "c":
-            elif listener.key == "v":
+curr_pos = lhu.allegro_to_LEAPhand(np.zeros(16), zeros=False)
+curr_pos = np.array(curr_pos)
+pos_stride = 0.1
+
+add_key_mappings = {
+    "q": 0,
+    "a": 1,
+    "z": 2,
+    "e": 3,
+    "d": 4,
+    "c": 5,
+    "t": 6,
+    "g": 7,
+    "b": 8,
+    "u": 9,
+    "j": 10,
+    "m": 11,
+    "o": 12,
+    "l": 13,
+    "[": 14,
+    "-": 15,
+}
+
+minus_key_mappings = {
+    "w": 0,
+    "s": 1,
+    "x": 2,
+    "r": 3,
+    "f": 4,
+    "v": 5,
+    "y": 6,
+    "h": 7,
+    "n": 8,
+    "i": 9,
+    "k": 10,
+    ",": 11,
+    "p": 12,
+    ";": 13,
+    "]": 14,
+    "=": 15,
+}
+
+frequency = 20
+while True:
+    try:
+        if listener.key in add_key_mappings:
+            index = add_key_mappings[listener.key]
+            curr_pos[index] += pos_stride
+        elif listener.key in minus_key_mappings:
+            index = minus_key_mappings[listener.key]
+            curr_pos[index] -= pos_stride
+        else:
+            continue
             
-            else:
-                pass
-
-        listener.key = ""
-
-        leap_hand.set_allegro(curr_pos)
+        leap_hand.set_leap(curr_pos)
         print("Position: " + str(leap_hand.read_pos()))
+        
+        listener.key = ""
         time.sleep(1 / frequency)
-
-        if save:
-            frame_data_logger.add("hand", hand_points)
-            frame_data_logger.add("flag", flag)
-            frame_data_logger.add("R", np.array(R))
-            frame_data_logger.add("T", np.array(T))
-            frame_data_logger.add("vicon_dict", vicon_dict)
-            frame_data_logger.add("rokoko_dict", rokoko_dict)
-
-        ct += 1
+    except KeyboardInterruptError:
+        break
 
 
 if __name__ == "__main__":
