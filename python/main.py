@@ -4,6 +4,9 @@ import numpy as np
 from leap_hand_utils.dynamixel_client import *
 import leap_hand_utils.leap_hand_utils as lhu
 import time
+
+from keyboard_listener import KeyboardListener
+
 #######################################################
 """This can control and query the LEAP Hand
 
@@ -17,6 +20,8 @@ I recommend you only query when necessary and below 90 samples a second.  Each o
 #180 is flat out for the index, middle, ring, fingers, and positive is closing more and more.
 
 """
+
+
 ########################################################
 class LeapNode:
     def __init__(self):
@@ -27,64 +32,122 @@ class LeapNode:
         self.kD = 200
         self.curr_lim = 350
         self.prev_pos = self.pos = self.curr_pos = lhu.allegro_to_LEAPhand(np.zeros(16))
-           
-        #You can put the correct port here or have the node auto-search for a hand at the first 3 ports.
-        self.motors = motors = [0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15]
+
+        # You can put the correct port here or have the node auto-search for a hand at the first 3 ports.
+        self.motors = motors = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
         try:
-            self.dxl_client = DynamixelClient(motors, '/dev/ttyUSB0', 4000000)
+            self.dxl_client = DynamixelClient(motors, "/dev/ttyUSB0", 4000000)
             self.dxl_client.connect()
         except Exception:
             try:
-                self.dxl_client = DynamixelClient(motors, '/dev/ttyUSB1', 4000000)
+                self.dxl_client = DynamixelClient(motors, "/dev/ttyUSB1", 4000000)
                 self.dxl_client.connect()
             except Exception:
-                self.dxl_client = DynamixelClient(motors, 'COM13', 4000000)
+                self.dxl_client = DynamixelClient(motors, "COM13", 4000000)
                 self.dxl_client.connect()
-        #Enables position-current control mode and the default parameters, it commands a position and then caps the current so the motors don't overload
-        self.dxl_client.sync_write(motors, np.ones(len(motors))*5, 11, 1)
+        # Enables position-current control mode and the default parameters, it commands a position and then caps the current so the motors don't overload
+        self.dxl_client.sync_write(motors, np.ones(len(motors)) * 5, 11, 1)
         self.dxl_client.set_torque_enabled(motors, True)
-        self.dxl_client.sync_write(motors, np.ones(len(motors)) * self.kP, 84, 2) # Pgain stiffness     
-        self.dxl_client.sync_write([0,4,8], np.ones(3) * (self.kP * 0.75), 84, 2) # Pgain stiffness for side to side should be a bit less
-        self.dxl_client.sync_write(motors, np.ones(len(motors)) * self.kI, 82, 2) # Igain
-        self.dxl_client.sync_write(motors, np.ones(len(motors)) * self.kD, 80, 2) # Dgain damping
-        self.dxl_client.sync_write([0,4,8], np.ones(3) * (self.kD * 0.75), 80, 2) # Dgain damping for side to side should be a bit less
-        #Max at current (in unit 1ma) so don't overheat and grip too hard #500 normal or #350 for lite
+        self.dxl_client.sync_write(
+            motors, np.ones(len(motors)) * self.kP, 84, 2
+        )  # Pgain stiffness
+        self.dxl_client.sync_write(
+            [0, 4, 8], np.ones(3) * (self.kP * 0.75), 84, 2
+        )  # Pgain stiffness for side to side should be a bit less
+        self.dxl_client.sync_write(
+            motors, np.ones(len(motors)) * self.kI, 82, 2
+        )  # Igain
+        self.dxl_client.sync_write(
+            motors, np.ones(len(motors)) * self.kD, 80, 2
+        )  # Dgain damping
+        self.dxl_client.sync_write(
+            [0, 4, 8], np.ones(3) * (self.kD * 0.75), 80, 2
+        )  # Dgain damping for side to side should be a bit less
+        # Max at current (in unit 1ma) so don't overheat and grip too hard #500 normal or #350 for lite
         self.dxl_client.sync_write(motors, np.ones(len(motors)) * self.curr_lim, 102, 2)
         self.dxl_client.write_desired_pos(self.motors, self.curr_pos)
 
-    #Receive LEAP pose and directly control the robot
+    # Receive LEAP pose and directly control the robot
     def set_leap(self, pose):
         self.prev_pos = self.curr_pos
         self.curr_pos = np.array(pose)
         self.dxl_client.write_desired_pos(self.motors, self.curr_pos)
-    #allegro compatibility
+
+    # allegro compatibility
     def set_allegro(self, pose):
         pose = lhu.allegro_to_LEAPhand(pose, zeros=False)
         self.prev_pos = self.curr_pos
         self.curr_pos = np.array(pose)
         self.dxl_client.write_desired_pos(self.motors, self.curr_pos)
-    #Sim compatibility, first read the sim value in range [-1,1] and then convert to leap
+
+    # Sim compatibility, first read the sim value in range [-1,1] and then convert to leap
     def set_ones(self, pose):
         pose = lhu.sim_ones_to_LEAPhand(np.array(pose))
         self.prev_pos = self.curr_pos
         self.curr_pos = np.array(pose)
         self.dxl_client.write_desired_pos(self.motors, self.curr_pos)
-    #read position
+
+    # read position
     def read_pos(self):
         return self.dxl_client.read_pos()
-    #read velocity
+
+    # read velocity
     def read_vel(self):
         return self.dxl_client.read_vel()
-    #read current
+
+    # read current
     def read_cur(self):
         return self.dxl_client.read_cur()
-#init the node
+
+
+# init the node
 def main(**kwargs):
+    listener = KeyboardListener()
     leap_hand = LeapNode()
+
+    curr_pos = lhu.allegro_to_LEAPhand(np.zeros(16), zeros=False)
+    curr_pos = np.array(curr_pos)
+    pos_stride = 0.1
+
+    frequency = 20
     while True:
-        leap_hand.set_allegro(np.zeros(16))
+        if len(listener.key) > 0:
+            if listener.key == "q":
+                curr_pos[0] += 0.1
+            elif listener.key == "w":
+                curr_pos[0] -= 0.1
+            elif listener.key == "a":
+                curr_pos[1] += 0.1
+            elif listener.key == "s":
+                curr_pos[1] -= 0.1
+            elif listener.key == "z":
+                curr_pos[1] += 0.1
+            elif listener.key == "x":
+            elif listener.key == "e":
+            elif listener.key == "r":
+            elif listener.key == "d":
+            elif listener.key == "f":
+            elif listener.key == "c":
+            elif listener.key == "v":
+            
+            else:
+                pass
+
+        listener.key = ""
+
+        leap_hand.set_allegro(curr_pos)
         print("Position: " + str(leap_hand.read_pos()))
-        time.sleep(0.03)
+        time.sleep(1 / frequency)
+
+        if save:
+            frame_data_logger.add("hand", hand_points)
+            frame_data_logger.add("flag", flag)
+            frame_data_logger.add("R", np.array(R))
+            frame_data_logger.add("T", np.array(T))
+            frame_data_logger.add("vicon_dict", vicon_dict)
+            frame_data_logger.add("rokoko_dict", rokoko_dict)
+
+        ct += 1
 
 
 if __name__ == "__main__":
