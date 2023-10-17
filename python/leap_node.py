@@ -1,11 +1,7 @@
 #!/usr/bin/env python3
-import numpy as np
-
-from leap_hand_utils.dynamixel_client import *
 import leap_hand_utils.leap_hand_utils as lhu
-import time
-
-from keyboard_listener import KeyboardListener
+import numpy as np
+from leap_hand_utils.dynamixel_client import *
 
 #######################################################
 """This can control and query the LEAP Hand
@@ -98,79 +94,3 @@ class LeapNode:
     # read current
     def read_cur(self):
         return self.dxl_client.read_cur()
-
-
-# init the node
-def main(**kwargs):
-    listener = KeyboardListener()
-    leap_hand = LeapNode()
-
-    curr_pos = lhu.allegro_to_LEAPhand(np.zeros(16), zeros=False)
-    curr_pos = np.array(curr_pos)
-    pos_stride = 0.1
-
-curr_pos = lhu.allegro_to_LEAPhand(np.zeros(16), zeros=False)
-curr_pos = np.array(curr_pos)
-pos_stride = 0.1
-
-add_key_mappings = {
-    "q": 0,
-    "a": 1,
-    "z": 2,
-    "e": 3,
-    "d": 4,
-    "c": 5,
-    "t": 6,
-    "g": 7,
-    "b": 8,
-    "u": 9,
-    "j": 10,
-    "m": 11,
-    "o": 12,
-    "l": 13,
-    "[": 14,
-    "-": 15,
-}
-
-minus_key_mappings = {
-    "w": 0,
-    "s": 1,
-    "x": 2,
-    "r": 3,
-    "f": 4,
-    "v": 5,
-    "y": 6,
-    "h": 7,
-    "n": 8,
-    "i": 9,
-    "k": 10,
-    ",": 11,
-    "p": 12,
-    ";": 13,
-    "]": 14,
-    "=": 15,
-}
-
-frequency = 20
-while True:
-    try:
-        if listener.key in add_key_mappings:
-            index = add_key_mappings[listener.key]
-            curr_pos[index] += pos_stride
-        elif listener.key in minus_key_mappings:
-            index = minus_key_mappings[listener.key]
-            curr_pos[index] -= pos_stride
-        else:
-            continue
-            
-        leap_hand.set_leap(curr_pos)
-        print("Position: " + str(leap_hand.read_pos()))
-        
-        listener.key = ""
-        time.sleep(1 / frequency)
-    except KeyboardInterruptError:
-        break
-
-
-if __name__ == "__main__":
-    main()
